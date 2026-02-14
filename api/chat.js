@@ -1,9 +1,9 @@
 // api/chat.js
 export default async function handler(req, res) {
-  // Allow CORS so your GitHub Pages frontend can call this
+  // 1. STRENGTHENED CORS HEADERS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   // Handle preflight request
   if (req.method === "OPTIONS") {
@@ -21,9 +21,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No message provided" });
     }
 
-    // Hugging Face Inference API
+    // 2. FETCH FROM HUGGING FACE
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/gpt2", // Replace gpt2 with your chosen model
+      "https://api-inference.huggingface.co/models/gpt2", 
       {
         method: "POST",
         headers: {
@@ -36,11 +36,15 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // The generated text is in data[0].generated_text
-    res.status(200).json(data);
+    // 3. FORMAT THE RESPONSE FOR YOUR WEBSITE
+    // Hugging Face returns an array: [{generated_text: "..."}]
+    // We transform it into: { response: "..." } so your website can read it easily.
+    const aiText = data[0]?.generated_text || data.generated_text || "AI Uplink Stable: No Data.";
+    
+    res.status(200).json({ response: aiText });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "AI request failed" });
+    res.status(500).json({ error: "AI request failed", details: error.message });
   }
 }
