@@ -9,9 +9,9 @@ export default async function handler(req, res) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "No message" });
 
-    // SWAPPING TO MISTRAL - Much faster and less 'lazy'
+    // FLAN-T5 is extremely fast and rarely 'sleeps'
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-v0.1",
+      "https://api-inference.huggingface.co/models/google/flan-t5-large",
       {
         method: "POST",
         headers: {
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          inputs: `Human: ${message}\nAI:`, // Giving Mistral a 'Chat' hint
+          inputs: message,
           options: { wait_for_model: true }
         }),
       }
@@ -27,19 +27,18 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Mistral returns an array with generated_text
+    // FLAN-T5 returns an array like [{generated_text: "..."}]
     let aiText = "";
-    if (Array.isArray(data)) {
-      aiText = data[0]?.generated_text || "";
+    if (Array.isArray(data) && data[0]?.generated_text) {
+      aiText = data[0].generated_text;
     } else if (data.generated_text) {
       aiText = data.generated_text;
     }
 
-    // Cleaning up the response (Mistral sometimes repeats the prompt)
-    aiText = aiText.replace(`Human: ${message}\nAI:`, "").trim();
-
     if (!aiText) {
-      aiText = "NEURAL LINK STABLE. ANALYZING DATA... TRY AGAIN IN 3 SECONDS.";
+      // If we STILL get nothing, check if the API is complaining about the Token
+      if (data.error) aiText = `API ERROR: ${data.error}`;
+      else aiText = "NEURAL LINK STABLE. BUT THE BRAIN IS EMPTY. RETRYING...";
     }
 
     res.status(200).json({ response: aiText });
