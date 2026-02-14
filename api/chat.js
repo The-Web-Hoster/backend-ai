@@ -9,9 +9,9 @@ export default async function handler(req, res) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "No message" });
 
-    // FLAN-T5 is extremely fast and rarely 'sleeps'
+    // Using the NEW Router URL as requested by the error message
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/google/flan-t5-large",
+      "https://router.huggingface.co/hf-inference/models/google/flan-t5-large",
       {
         method: "POST",
         headers: {
@@ -27,18 +27,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // FLAN-T5 returns an array like [{generated_text: "..."}]
     let aiText = "";
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      aiText = data[0].generated_text;
+    if (Array.isArray(data)) {
+      aiText = data[0]?.generated_text || "";
     } else if (data.generated_text) {
       aiText = data.generated_text;
     }
 
     if (!aiText) {
-      // If we STILL get nothing, check if the API is complaining about the Token
-      if (data.error) aiText = `API ERROR: ${data.error}`;
-      else aiText = "NEURAL LINK STABLE. BUT THE BRAIN IS EMPTY. RETRYING...";
+      // If there's an error in the response, show it so we can debug
+      aiText = data.error ? `MODEL ERROR: ${data.error}` : "NEURAL LINK STABLE. ANALYZING...";
     }
 
     res.status(200).json({ response: aiText });
