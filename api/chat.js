@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // 1. Give the browser permission
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -7,42 +8,33 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body;
-    if (!message) return res.status(400).json({ error: "No message" });
 
-    // Using the NEW 2026 Router endpoint with the 'v1' chat format
+    // 2. The standard 2026 Router URL
     const response = await fetch(
       "https://router.huggingface.co/hf-inference/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "meta-llama/Meta-Llama-3-8B-Instruct",
+          model: "Qwen/Qwen2.5-7B-Instruct", // Very reliable 2026 model
           messages: [{ role: "user", content: message }],
-          max_tokens: 500,
+          max_tokens: 200
         }),
       }
     );
 
     const data = await response.json();
 
-    // If Hugging Face returns an error, we catch it here
-    if (data.error) {
-      console.error("HF Error:", data.error);
-      return res.status(200).json({ 
-        response: "NEURAL CORE REBOOTING. PLEASE RETRY IN 5 SECONDS." 
-      });
-    }
-
-    // Extracting text from the OpenAI-style format
-    const aiText = data.choices?.[0]?.message?.content || "SYSTEM IDLE.";
+    // 3. Simple text extraction
+    const aiText = data.choices?.[0]?.message?.content || "No response from AI.";
 
     res.status(200).json({ response: aiText });
 
   } catch (error) {
-    console.error("Uplink Error:", error);
-    res.status(500).json({ response: "CRITICAL: NEURAL LINK SEVERED." });
+    // This sends the EXACT error to your website so you can tell me what it says
+    res.status(500).json({ response: `Uplink Error: ${error.message}` });
   }
 }
