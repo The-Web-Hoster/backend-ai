@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "No message" });
 
-    // Try the fastest, most reliable router endpoint first
+    // Using the NEW 2026 Router endpoint with the 'v1' chat format
     const response = await fetch(
       "https://router.huggingface.co/hf-inference/v1/chat/completions",
       {
@@ -19,23 +19,24 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "mistralai/Mistral-7B-Instruct-v0.2",
+          model: "meta-llama/Meta-Llama-3-8B-Instruct",
           messages: [{ role: "user", content: message }],
-          max_tokens: 100,
+          max_tokens: 500,
         }),
       }
     );
 
     const data = await response.json();
 
-    // If the new router fails, it usually returns an error object
+    // If Hugging Face returns an error, we catch it here
     if (data.error) {
+      console.error("HF Error:", data.error);
       return res.status(200).json({ 
         response: "NEURAL CORE REBOOTING. PLEASE RETRY IN 5 SECONDS." 
       });
     }
 
-    // Extracting text from the new OpenAI-style format
+    // Extracting text from the OpenAI-style format
     const aiText = data.choices?.[0]?.message?.content || "SYSTEM IDLE.";
 
     res.status(200).json({ response: aiText });
