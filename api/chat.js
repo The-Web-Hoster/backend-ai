@@ -9,35 +9,25 @@ export default async function handler(req, res) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "No message" });
 
-    // Function to talk to Hugging Face
-    async function queryAI(text) {
-      const response = await fetch(
-        "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.HF_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ 
-            inputs: text,
-            options: { wait_for_model: true, use_cache: false }
-          }),
-        }
-      );
-      return await response.json();
-    }
+    // SWAPPING TO MISTRAL - Much faster and less 'lazy'
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-v0.1",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          inputs: `Human: ${message}\nAI:`, // Giving Mistral a 'Chat' hint
+          options: { wait_for_model: true }
+        }),
+      }
+    );
 
-    let data = await queryAI(message);
+    const data = await response.json();
 
-    // If the AI returns an error or empty list, wait 2 seconds and try one more time
-    if (!data || (Array.isArray(data) && data.length === 0) || data.error) {
-        console.log("AI was lazy, retrying...");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        data = await queryAI(message);
-    }
-
-    // Deep Extract Text
+    // Mistral returns an array with generated_text
     let aiText = "";
     if (Array.isArray(data)) {
       aiText = data[0]?.generated_text || "";
@@ -45,15 +35,16 @@ export default async function handler(req, res) {
       aiText = data.generated_text;
     }
 
-    // Final check
-    if (!aiText || aiText.trim() === "") {
-      aiText = "NEURAL LINK STABLE. MODEL IS WAKING UP. PLEASE SEND MESSAGE AGAIN.";
+    // Cleaning up the response (Mistral sometimes repeats the prompt)
+    aiText = aiText.replace(`Human: ${message}\nAI:`, "").trim();
+
+    if (!aiText) {
+      aiText = "NEURAL LINK STABLE. ANALYZING DATA... TRY AGAIN IN 3 SECONDS.";
     }
 
     res.status(200).json({ response: aiText });
 
   } catch (error) {
-    console.error(error);
     res.status(500).json({ response: "SYSTEM ERROR: UPLINK SEVERED." });
   }
 }
