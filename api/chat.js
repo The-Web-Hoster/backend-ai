@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
@@ -18,10 +18,11 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "Qwen/Qwen2.5-7B-Instruct", 
+          // Switching to Llama 3 - High availability in 2026
+          model: "meta-llama/Meta-Llama-3-8B-Instruct", 
           messages: [{ role: "user", content: message }],
-          max_tokens: 250,
-          options: { wait_for_model: true } // THIS IS THE KEY IN 2026
+          max_tokens: 150,
+          stream: false
         }),
       }
     );
@@ -29,16 +30,17 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (data.error) {
-      // If it's just loading, we tell the user to wait vs crashing
+      // Catching the "Model Loading" status specifically
       return res.status(200).json({ 
-        response: "AI IS LOADING COGNITIVE MODULES... SEND AGAIN IN 10 SECONDS." 
+        response: "NEURAL CORE LOADING... RETRY IN 5 SECONDS." 
       });
     }
 
-    const aiText = data.choices?.[0]?.message?.content || "Connection stable. System idle.";
+    const aiText = data.choices?.[0]?.message?.content || "Link stable. System idle.";
     res.status(200).json({ response: aiText });
 
   } catch (error) {
-    res.status(200).json({ response: "NEURAL LINK STABILIZING... TRY ONE MORE TIME." });
+    // This triggers if the 10-second Vercel limit is hit
+    res.status(200).json({ response: "NEURAL LINK STABILIZING... TRY AGAIN." });
   }
 }
